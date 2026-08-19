@@ -16,8 +16,6 @@ dist-ssr
 .tmp/
 .hallmark/
 coverage/
-playwright-report/
-test-results/
 *.tsbuildinfo
 
 # Editor directories and files

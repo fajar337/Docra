@@ -10,7 +10,7 @@ Seluruh pemrosesan berjalan client-side di browser. File PDF tidak dikirim ke se
 - Paket resmi `mupdf` dengan WebAssembly
 - Konva dan react-konva untuk interaction overlay
 - Zustand untuk document, editor, dan history state
-- Vitest dan Playwright untuk verifikasi
+- Vitest untuk verifikasi unit
 - Fontsource untuk asset font lokal melalui npm; tidak ada CDN
 
 Project ini sengaja tidak menggunakan PDF.js, pdf-lib, Laravel, Express, atau backend Node.js.
@@ -31,10 +31,9 @@ npm test
 npm run lint
 npm run build
 npm run fixture:pdf
-npm run test:e2e
 ```
 
-`fixture:pdf` membuat `.tmp/docra-test.pdf` menggunakan MuPDF. Test E2E memakai Chrome yang terpasang di Windows; sesuaikan `executablePath` dalam `playwright.config.ts` jika Chrome berada di lokasi lain.
+`fixture:pdf` membuat `.tmp/docra-test.pdf` menggunakan MuPDF.
 
 ## Inisialisasi MuPDF
 
