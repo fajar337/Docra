@@ -74,6 +74,8 @@ Saat export, origin CropBox ditambahkan kembali. Seluruh transform tersebut bera
 
 Tidak ada metadata font yang direka. Jika MuPDF tidak menyediakan informasi yang dapat dipakai, field optional tetap kosong atau memakai fallback saat reconstruction. Setiap word item memiliki invisible clickable Konva rectangle; hover dan selection menampilkan bounds tipis dan debug panel menampilkan koordinatnya. Double-click dengan mouse atau double-tap di Android/iOS mengubah teks asli menjadi replacement object yang dapat dipindah dan diedit.
 
+Pada perangkat sentuh, satu jari tetap melakukan scroll dan pinch dua jari mengubah zoom dokumen pada rentang 25â€“200%. Titik tengah pinch dipertahankan sebagai anchor agar halaman tidak meloncat, dan native page pinch hanya dinonaktifkan di area viewer PDF.
+
 ## Existing-text replacement
 
 Docra tidak mengubah native content stream secara langsung. Replacement bekerja sebagai berikut:

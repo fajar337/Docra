@@ -1,6 +1,12 @@
 import { lazy, Suspense, useEffect, useLayoutEffect, useRef } from 'react'
 import { FileUp, LoaderCircle } from 'lucide-react'
 import type { PDFDocument } from 'mupdf'
+import {
+  distanceBetween,
+  midpointBetween,
+  zoomFromPinch,
+  type GesturePoint,
+} from '../pdf/pinchZoom'
 import { useDocumentStore } from '../stores/documentStore'
 import {
   normalizeZoom,
@@ -13,12 +19,28 @@ const PDFPage = lazy(() =>
   import('./PDFPage').then((module) => ({ default: module.PDFPage })),
 )
 
+interface PinchGesture {
+  startDistance: number
+  startZoom: number
+  anchorFrame: HTMLElement | null
+  anchorRatioX: number
+  anchorRatioY: number
+  anchorContentX: number
+  anchorContentY: number
+}
+
+function touchPoint(touch: Touch): GesturePoint {
+  return { x: touch.clientX, y: touch.clientY }
+}
+
 export function PDFViewer() {
   const viewerRef = useRef<HTMLElement>(null)
   const automaticZoomRef = useRef<{
     document: PDFDocument
     zoom: number
   } | null>(null)
+  const pinchGestureRef = useRef<PinchGesture | null>(null)
+  const pinchFrameRef = useRef<number | null>(null)
   const document = useDocumentStore((state) => state.pdfDocument)
   const pages = useDocumentStore((state) => state.pages)
   const isLoading = useDocumentStore((state) => state.isLoading)
@@ -87,8 +109,119 @@ export function PDFViewer() {
       setZoom(currentZoom + (event.deltaY < 0 ? ZOOM_STEP : -ZOOM_STEP))
     }
 
+    const startPinch = (event: TouchEvent) => {
+      if (event.touches.length !== 2) {
+        return
+      }
+
+      const first = touchPoint(event.touches[0])
+      const second = touchPoint(event.touches[1])
+      const midpoint = midpointBetween(first, second)
+      const viewerBounds = viewer.getBoundingClientRect()
+      const target = window.document.elementFromPoint(midpoint.x, midpoint.y)
+      const anchorFrame =
+        target instanceof Element
+          ? target.closest<HTMLElement>('.pdf-page-frame')
+          : null
+      const frameBounds = anchorFrame?.getBoundingClientRect()
+
+      pinchGestureRef.current = {
+        startDistance: distanceBetween(first, second),
+        startZoom: useEditorStore.getState().zoom,
+        anchorFrame,
+        anchorRatioX: frameBounds
+          ? (midpoint.x - frameBounds.left) / Math.max(frameBounds.width, 1)
+          : 0,
+        anchorRatioY: frameBounds
+          ? (midpoint.y - frameBounds.top) / Math.max(frameBounds.height, 1)
+          : 0,
+        anchorContentX: viewer.scrollLeft + midpoint.x - viewerBounds.left,
+        anchorContentY: viewer.scrollTop + midpoint.y - viewerBounds.top,
+      }
+      event.preventDefault()
+    }
+
+    const movePinch = (event: TouchEvent) => {
+      const gesture = pinchGestureRef.current
+      if (!gesture || event.touches.length !== 2) {
+        return
+      }
+
+      event.preventDefault()
+      const first = touchPoint(event.touches[0])
+      const second = touchPoint(event.touches[1])
+      const midpoint = midpointBetween(first, second)
+      const nextZoom = zoomFromPinch(
+        gesture.startZoom,
+        gesture.startDistance,
+        distanceBetween(first, second),
+      )
+      useEditorStore.getState().setZoom(nextZoom)
+
+      if (pinchFrameRef.current !== null) {
+        window.cancelAnimationFrame(pinchFrameRef.current)
+      }
+      pinchFrameRef.current = window.requestAnimationFrame(() => {
+        const anchorFrame = gesture.anchorFrame
+        if (anchorFrame?.isConnected) {
+          const frameBounds = anchorFrame.getBoundingClientRect()
+          const anchorX = frameBounds.left + frameBounds.width * gesture.anchorRatioX
+          const anchorY = frameBounds.top + frameBounds.height * gesture.anchorRatioY
+          viewer.scrollLeft += anchorX - midpoint.x
+          viewer.scrollTop += anchorY - midpoint.y
+        } else {
+          const viewerBounds = viewer.getBoundingClientRect()
+          const scale = nextZoom / gesture.startZoom
+          viewer.scrollLeft =
+            gesture.anchorContentX * scale - (midpoint.x - viewerBounds.left)
+          viewer.scrollTop =
+            gesture.anchorContentY * scale - (midpoint.y - viewerBounds.top)
+        }
+        pinchFrameRef.current = null
+      })
+    }
+
+    const endPinch = (event: TouchEvent) => {
+      if (event.touches.length < 2) {
+        pinchGestureRef.current = null
+      }
+    }
+
+    const preventNativePinch = (event: Event) => {
+      event.preventDefault()
+    }
+
+    const touchListenerOptions: AddEventListenerOptions = {
+      capture: true,
+      passive: false,
+    }
+
     viewer.addEventListener('wheel', handleWheel, { passive: false })
-    return () => viewer.removeEventListener('wheel', handleWheel)
+    viewer.addEventListener('touchstart', startPinch, touchListenerOptions)
+    viewer.addEventListener('touchmove', movePinch, touchListenerOptions)
+    viewer.addEventListener('touchend', endPinch, true)
+    viewer.addEventListener('touchcancel', endPinch, true)
+    viewer.addEventListener('gesturestart', preventNativePinch, {
+      passive: false,
+    })
+    viewer.addEventListener('gesturechange', preventNativePinch, {
+      passive: false,
+    })
+
+    return () => {
+      viewer.removeEventListener('wheel', handleWheel)
+      viewer.removeEventListener('touchstart', startPinch, true)
+      viewer.removeEventListener('touchmove', movePinch, true)
+      viewer.removeEventListener('touchend', endPinch, true)
+      viewer.removeEventListener('touchcancel', endPinch, true)
+      viewer.removeEventListener('gesturestart', preventNativePinch)
+      viewer.removeEventListener('gesturechange', preventNativePinch)
+      if (pinchFrameRef.current !== null) {
+        window.cancelAnimationFrame(pinchFrameRef.current)
+        pinchFrameRef.current = null
+      }
+      pinchGestureRef.current = null
+    }
   }, [document])
 
   if (isLoading) {
