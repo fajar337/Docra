@@ -99,7 +99,11 @@ function detachForeignAnnotations(
           }),
       )
       const pageObject = page.getObject()
-      const annotations = pageObject.get('Annots').resolve()
+      const annotationsObject = pageObject.get('Annots')
+      if (annotationsObject.isNull()) {
+        continue
+      }
+      const annotations = annotationsObject.resolve()
       if (!annotations.isArray()) {
         continue
       }
@@ -145,11 +149,14 @@ function restoreForeignAnnotations(
     try {
       const pageObject = page.getObject()
       const restoredAnnotations = document.newArray()
-      const existingAnnotations = pageObject.get('Annots').resolve()
-      if (existingAnnotations.isArray()) {
-        existingAnnotations.forEach((annotation) => {
-          restoredAnnotations.push(annotation)
-        })
+      const existingAnnotationsObject = pageObject.get('Annots')
+      if (!existingAnnotationsObject.isNull()) {
+        const existingAnnotations = existingAnnotationsObject.resolve()
+        if (existingAnnotations.isArray()) {
+          existingAnnotations.forEach((annotation) => {
+            restoredAnnotations.push(annotation)
+          })
+        }
       }
       annotations.forEach((annotation) => {
         restoredAnnotations.push(annotation)

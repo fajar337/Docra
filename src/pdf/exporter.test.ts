@@ -68,6 +68,30 @@ function createSourcePDFWithReviewAnnotation(): Uint8Array {
   }
 }
 
+function createTwoPageSourcePDF(): Uint8Array {
+  const source = createSourcePDF()
+  const document = mupdf.Document.openDocument(
+    source,
+    'application/pdf',
+  ).asPDF()
+  if (!document) {
+    throw new Error('Source fixture is not a PDF.')
+  }
+
+  try {
+    const pageObject = document.addPage([0, 0, 300, 200], 0, {}, '')
+    document.insertPage(-1, pageObject)
+    const buffer = document.saveToBuffer('compress=yes')
+    try {
+      return Uint8Array.from(buffer.asUint8Array())
+    } finally {
+      buffer.destroy()
+    }
+  } finally {
+    document.destroy()
+  }
+}
+
 function createMixedSizeSourcePDF(): Uint8Array {
   const document = new mupdf.PDFDocument()
   try {
@@ -237,6 +261,53 @@ describe('MuPDF exporter', () => {
         expect(strokedPathCount).toBeGreaterThan(0)
       } finally {
         page.destroy()
+      }
+    } finally {
+      reopened.destroy()
+    }
+  })
+
+  it('handles untouched pages without annotation arrays', () => {
+    const source = createTwoPageSourcePDF()
+    const pages: PDFPageInfo[] = [0, 1].map((pageIndex) => ({
+      pageIndex,
+      bounds: [0, 0, 300, 200],
+      width: 300,
+      height: 200,
+      textItems: [],
+    }))
+    const text: EditorObject = {
+      id: 'text:two-page',
+      type: 'text',
+      pageIndex: 0,
+      x: 20,
+      y: 20,
+      width: 120,
+      height: 24,
+      text: 'Baked text',
+      fontSize: 14,
+      color: '#111827',
+      rotation: 0,
+      source: 'added',
+    }
+
+    const output = exportPDF(source, [text], pages)
+    const reopened = mupdf.Document.openDocument(
+      output,
+      'application/pdf',
+    ).asPDF()
+    expect(reopened).not.toBeNull()
+    if (!reopened) {
+      return
+    }
+
+    try {
+      expect(reopened.countPages()).toBe(2)
+      const untouchedPage = reopened.loadPage(1) as PDFPage
+      try {
+        expect(untouchedPage.getAnnotations()).toEqual([])
+      } finally {
+        untouchedPage.destroy()
       }
     } finally {
       reopened.destroy()
