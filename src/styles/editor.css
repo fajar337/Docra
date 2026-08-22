@@ -649,6 +649,7 @@
 .editor-layer {
   inset: 0;
   position: absolute;
+  touch-action: manipulation;
 }
 
 .page-error {

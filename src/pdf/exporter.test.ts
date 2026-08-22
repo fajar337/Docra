@@ -34,6 +34,40 @@ function createSourcePDF(): Uint8Array {
   }
 }
 
+function createSourcePDFWithReviewAnnotation(): Uint8Array {
+  const source = createSourcePDF()
+  const document = mupdf.Document.openDocument(
+    source,
+    'application/pdf',
+  ).asPDF()
+  if (!document) {
+    throw new Error('Source fixture is not a PDF.')
+  }
+
+  try {
+    const page = document.loadPage(0) as PDFPage
+    try {
+      const annotation = page.createAnnotation('Text')
+      annotation.setAuthor('External reviewer')
+      annotation.setContents('Keep this review comment interactive.')
+      annotation.setRect([250, 20, 270, 40])
+      annotation.update()
+      page.update()
+    } finally {
+      page.destroy()
+    }
+
+    const buffer = document.saveToBuffer('compress=yes')
+    try {
+      return Uint8Array.from(buffer.asUint8Array())
+    } finally {
+      buffer.destroy()
+    }
+  } finally {
+    document.destroy()
+  }
+}
+
 function createMixedSizeSourcePDF(): Uint8Array {
   const document = new mupdf.PDFDocument()
   try {
@@ -91,8 +125,8 @@ function createUnsupportedFontSourcePDF(): Uint8Array {
 }
 
 describe('MuPDF exporter', () => {
-  it('saves annotations and produces a PDF that MuPDF can reopen', () => {
-    const source = createSourcePDF()
+  it('bakes editor objects into a PDF that MuPDF can reopen', () => {
+    const source = createSourcePDFWithReviewAnnotation()
     const pages: PDFPageInfo[] = [
       {
         pageIndex: 0,
@@ -171,9 +205,36 @@ describe('MuPDF exporter', () => {
         const annotationTypes = page
           .getAnnotations()
           .map((annotation) => annotation.getType())
-        expect(annotationTypes).toContain('FreeText')
-        expect(annotationTypes).toContain('Highlight')
-        expect(annotationTypes).toContain('Ink')
+        expect(annotationTypes).toEqual(['Text'])
+        expect(page.getAnnotations()[0]?.getAuthor()).toBe('External reviewer')
+
+        const text = page.toStructuredText('preserve-whitespace')
+        try {
+          expect(text.asText().replace(/\s+/gu, ' ')).toContain(
+            'Added with MuPDF',
+          )
+        } finally {
+          text.destroy()
+        }
+
+        let filledPathCount = 0
+        let strokedPathCount = 0
+        const device = new mupdf.Device({
+          fillPath: () => {
+            filledPathCount += 1
+          },
+          strokePath: () => {
+            strokedPathCount += 1
+          },
+        })
+        try {
+          page.runPageContents(device, mupdf.Matrix.identity)
+          device.close()
+        } finally {
+          device.destroy()
+        }
+        expect(filledPathCount).toBeGreaterThan(0)
+        expect(strokedPathCount).toBeGreaterThan(0)
       } finally {
         page.destroy()
       }
@@ -261,41 +322,30 @@ describe('MuPDF exporter', () => {
             }
             expect(strokedPathCount).toBeGreaterThan(0)
 
-            const annotation = reopenedPage
-              .getAnnotations()
-              .find((candidate) => candidate.getType() === 'FreeText')
-            expect(annotation?.getContents()).toBe('17')
-            if (!annotation) {
-              return
-            }
-
-            const displayList = annotation.toDisplayList()
+            expect(reopenedPage.getAnnotations()).toEqual([])
+            const structuredText = reopenedPage.toStructuredText(
+              'preserve-whitespace',
+            )
             try {
-              const structuredText = displayList.toStructuredText(
-                'preserve-whitespace',
-              )
-              try {
-                const origins: number[] = []
-                const renderedFonts: string[] = []
-                const boldStates: boolean[] = []
-                structuredText.walk({
-                  onChar: (_character: string, origin: Point, font) => {
+              expect(structuredText.asText()).toContain('17')
+              const origins: number[] = []
+              const renderedFonts: string[] = []
+              const boldStates: boolean[] = []
+              structuredText.walk({
+                onChar: (character: string, origin: Point, font) => {
+                  if (character === '1' || character === '7') {
                     origins.push(origin[1])
                     renderedFonts.push(font.getName())
                     boldStates.push(font.isBold())
-                  },
-                })
-                expect(origins.length).toBeGreaterThan(0)
-                expect(origins[0]).toBeCloseTo(originalBaseline, 2)
-                expect(new Set(renderedFonts)).toEqual(
-                  new Set(['Times-Bold']),
-                )
-                expect(new Set(boldStates)).toEqual(new Set([true]))
-              } finally {
-                structuredText.destroy()
-              }
+                  }
+                },
+              })
+              expect(origins.length).toBe(2)
+              expect(origins[0]).toBeCloseTo(originalBaseline, 2)
+              expect(new Set(renderedFonts)).toEqual(new Set(['Times-Bold']))
+              expect(new Set(boldStates)).toEqual(new Set([true]))
             } finally {
-              displayList.destroy()
+              structuredText.destroy()
             }
           } finally {
             reopenedPage.destroy()
@@ -353,33 +403,21 @@ describe('MuPDF exporter', () => {
     try {
       const page = reopened.loadPage(0) as PDFPage
       try {
-        const annotation = page
-          .getAnnotations()
-          .find((candidate) => candidate.getType() === 'FreeText')
-        expect(annotation).toBeDefined()
-        if (!annotation) {
-          return
-        }
-
-        const displayList = annotation.toDisplayList()
+        expect(page.getAnnotations()).toEqual([])
+        const structuredText = page.toStructuredText('preserve-whitespace')
         try {
-          const structuredText = displayList.toStructuredText(
-            'preserve-whitespace',
-          )
-          try {
-            const fontNames: string[] = []
-            structuredText.walk({
-              onChar: (_character, _origin, font) => {
+          expect(structuredText.asText()).toContain('Roboto Light')
+          const fontNames: string[] = []
+          structuredText.walk({
+            onChar: (character, _origin, font) => {
+              if (character === 'R') {
                 fontNames.push(font.getName())
-              },
-            })
-            expect(fontNames.length).toBeGreaterThan(0)
-            expect(new Set(fontNames)).toEqual(new Set(['Roboto-Light']))
-          } finally {
-            structuredText.destroy()
-          }
+              }
+            },
+          })
+          expect(fontNames).toEqual(['Roboto-Light'])
         } finally {
-          displayList.destroy()
+          structuredText.destroy()
         }
       } finally {
         page.destroy()
@@ -427,24 +465,12 @@ describe('MuPDF exporter', () => {
     try {
       const page = reopened.loadPage(0) as PDFPage
       try {
-        const annotation = page
-          .getAnnotations()
-          .find((candidate) => candidate.getType() === 'FreeText')
-        expect(annotation).toBeDefined()
-        if (!annotation) {
-          return
-        }
-
-        const displayList = annotation.toDisplayList()
+        expect(page.getAnnotations()).toEqual([])
+        const text = page.toStructuredText('preserve-whitespace')
         try {
-          const text = displayList.toStructuredText('preserve-whitespace')
-          try {
-            expect(text.asText()).toContain('OFF')
-          } finally {
-            text.destroy()
-          }
+          expect(text.asText()).toContain('OFF')
         } finally {
-          displayList.destroy()
+          text.destroy()
         }
       } finally {
         page.destroy()

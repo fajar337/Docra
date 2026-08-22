@@ -39,6 +39,13 @@ interface ExportFontCache {
   >
 }
 
+interface PreservedPageAnnotations {
+  pageIndex: number
+  annotations: PDFObject[]
+}
+
+const DOCRA_ANNOTATION_AUTHOR = 'Docra PDF Workbench'
+
 function copyBytes(bytes: Uint8Array): Uint8Array {
   return Uint8Array.from(bytes)
 }
@@ -67,8 +74,91 @@ function parseHexColor(color: string): AnnotColor {
 function markAnnotation(annotation: ReturnType<PDFPage['createAnnotation']>) {
   const mupdf = getMuPDF()
   annotation.setFlags(mupdf.PDFAnnotation.IS_PRINT)
-  annotation.setAuthor('Docra PDF Workbench')
+  annotation.setAuthor(DOCRA_ANNOTATION_AUTHOR)
   annotation.setModificationDate(new Date())
+}
+
+function detachForeignAnnotations(
+  document: PDFDocument,
+): PreservedPageAnnotations[] {
+  const preservedPages: PreservedPageAnnotations[] = []
+
+  for (let pageIndex = 0; pageIndex < document.countPages(); pageIndex += 1) {
+    const page = document.loadPage(pageIndex)
+    try {
+      const docraAnnotationNumbers = new Set(
+        page
+          .getAnnotations()
+          .filter(
+            (annotation) =>
+              annotation.getAuthor() === DOCRA_ANNOTATION_AUTHOR,
+          )
+          .flatMap((annotation) => {
+            const object = annotation.getObject()
+            return object.isIndirect() ? [object.asIndirect()] : []
+          }),
+      )
+      const pageObject = page.getObject()
+      const annotations = pageObject.get('Annots').resolve()
+      if (!annotations.isArray()) {
+        continue
+      }
+
+      const annotationsToBake = document.newArray()
+      const annotationsToPreserve: PDFObject[] = []
+      annotations.forEach((annotation) => {
+        if (
+          annotation.isIndirect() &&
+          docraAnnotationNumbers.has(annotation.asIndirect())
+        ) {
+          annotationsToBake.push(annotation)
+        } else {
+          annotationsToPreserve.push(annotation)
+        }
+      })
+
+      if (annotationsToBake.length > 0) {
+        pageObject.put('Annots', annotationsToBake)
+      } else {
+        pageObject.delete('Annots')
+      }
+      if (annotationsToPreserve.length > 0) {
+        preservedPages.push({
+          pageIndex,
+          annotations: annotationsToPreserve,
+        })
+      }
+    } finally {
+      page.destroy()
+    }
+  }
+
+  return preservedPages
+}
+
+function restoreForeignAnnotations(
+  document: PDFDocument,
+  preservedPages: PreservedPageAnnotations[],
+): void {
+  preservedPages.forEach(({ pageIndex, annotations }) => {
+    const page = document.loadPage(pageIndex)
+    try {
+      const pageObject = page.getObject()
+      const restoredAnnotations = document.newArray()
+      const existingAnnotations = pageObject.get('Annots').resolve()
+      if (existingAnnotations.isArray()) {
+        existingAnnotations.forEach((annotation) => {
+          restoredAnnotations.push(annotation)
+        })
+      }
+      annotations.forEach((annotation) => {
+        restoredAnnotations.push(annotation)
+      })
+      pageObject.put('Annots', restoredAnnotations)
+    } finally {
+      page.destroy()
+    }
+  })
 }
 
 function normalizeFontName(name: string): string {
@@ -553,6 +643,14 @@ export function exportPDF(
         applyPageObjects(document, pageInfo, pageObjects, fontCache)
       }
     }
+
+    // Keep Docra's generated appearance streams as final page content. Some
+    // mobile PDF viewers rebuild FreeText annotations from their default
+    // appearance dictionary, which can move the baseline or substitute the
+    // selected font. Third-party annotations remain interactive.
+    const preservedAnnotations = detachForeignAnnotations(document)
+    document.bake(true, false)
+    restoreForeignAnnotations(document, preservedAnnotations)
 
     const buffer = document.saveToBuffer(
       'garbage=4,compress=yes,compress-images=yes,compress-fonts=yes',

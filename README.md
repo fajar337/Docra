@@ -72,7 +72,7 @@ Saat export, origin CropBox ditambahkan kembali. Seluruh transform tersebut bera
 
 `src/pdf/textExtractor.ts` menggunakan `Page.toStructuredText().walk()`. Callback `onChar` memberi karakter, quad, font, size, dan color asli. Karakter dikelompokkan menjadi word items berdasarkan whitespace, perubahan font/size/color, jarak horizontal, dan perpindahan line.
 
-Tidak ada metadata font yang direka. Jika MuPDF tidak menyediakan informasi yang dapat dipakai, field optional tetap kosong atau memakai fallback saat reconstruction. Setiap word item memiliki invisible clickable Konva rectangle; hover dan selection menampilkan bounds tipis dan debug panel menampilkan koordinatnya.
+Tidak ada metadata font yang direka. Jika MuPDF tidak menyediakan informasi yang dapat dipakai, field optional tetap kosong atau memakai fallback saat reconstruction. Setiap word item memiliki invisible clickable Konva rectangle; hover dan selection menampilkan bounds tipis dan debug panel menampilkan koordinatnya. Double-click dengan mouse atau double-tap di Android/iOS mengubah teks asli menjadi replacement object yang dapat dipindah dan diedit.
 
 ## Existing-text replacement
 
@@ -116,7 +116,7 @@ Delete/Backspace tidak menghapus object saat fokus berada pada input, textarea, 
 garbage=4,compress=yes,compress-images=yes,compress-fonts=yes
 ```
 
-Hasil `saveToBuffer()` disalin keluar dari memory WASM, dibuat menjadi Blob, dan diunduh sebagai `edited.pdf`. **Test Export** menjalankan pipeline yang sama tetapi membuka output kembali di aplikasi. Unmodified page content tidak dirasterisasi, sehingga text asli di luar area edit tetap berupa content PDF asli.
+Sebelum `saveToBuffer()`, appearance hasil edit Docra di-*bake* menjadi content stream halaman. Langkah ini mencegah viewer Android/iOS meregenerasi anotasi `FreeText` dengan font atau baseline yang berbeda, sedangkan anotasi pihak ketiga tetap dipertahankan sebagai anotasi interaktif. Hasil `saveToBuffer()` kemudian disalin keluar dari memory WASM, dibuat menjadi Blob, dan diunduh sebagai `edited.pdf`. **Test Export** menjalankan pipeline yang sama tetapi membuka output kembali di aplikasi. Unmodified page content tidak dirasterisasi, sehingga text asli di luar area edit tetap berupa content PDF asli.
 
 ## Error handling
 
@@ -130,7 +130,7 @@ Error ditulis ke `console.error` dan ditampilkan melalui banner. Kondisi yang di
 - Encrypted PDF yang membutuhkan password belum memiliki password prompt.
 - Rotasi text object dapat dipreview di Konva tetapi belum direkonstruksi sebagai rotated FreeText saat export.
 - Rotated redaction diekspor sebagai axis-aligned bounds yang menutup seluruh area rotasinya.
-- FreeText, Highlight, dan Ink tetap berupa PDF annotations; tampilan kecil dapat berbeda antar-PDF viewer.
+- Hasil ekspor bersifat final: FreeText, Highlight, dan Ink di-*bake* ke content stream agar tampil konsisten lintas PDF viewer.
 - Rendering dan text extraction masih berjalan di main thread. Dokumen sangat besar dapat membuat UI berhenti sejenak.
 - Semua halaman dirender sekaligus; belum ada virtual scrolling atau progressive page rendering.
 - Existing-text replacement adalah redact + reconstruction, bukan native content-stream editing.

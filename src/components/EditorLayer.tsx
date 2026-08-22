@@ -264,7 +264,7 @@ export function EditorLayer({ pageInfo, zoom }: EditorLayerProps) {
   }
 
   const makePDFTextMovable = (
-    event: KonvaEventObject<MouseEvent>,
+    event: KonvaEventObject<Event>,
     item: PDFPageInfo['textItems'][number],
   ) => {
     stopEvent(event)
@@ -476,6 +476,9 @@ export function EditorLayer({ pageInfo, zoom }: EditorLayerProps) {
                 setSelectedPage(pageInfo.pageIndex)
               }}
               onDblClick={(event) => {
+                makePDFTextMovable(event, item)
+              }}
+              onDblTap={(event) => {
                 makePDFTextMovable(event, item)
               }}
               onTap={(event) => {
