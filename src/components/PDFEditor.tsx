@@ -1,6 +1,5 @@
 import { useEffect } from 'react'
 import { Layers3, ShieldCheck } from 'lucide-react'
-import { downloadPDF, exportPDF } from '../pdf/exporter'
 import { useDocumentStore } from '../stores/documentStore'
 import { useEditorStore } from '../stores/editorStore'
 import { useHistoryStore } from '../stores/historyStore'
@@ -108,6 +107,7 @@ export function PDFEditor() {
     await new Promise<void>((resolve) => window.setTimeout(resolve, 0))
 
     try {
+      const { downloadPDF, exportPDF } = await import('../pdf/exporter')
       const bytes = exportPDF(originalBytes, objects, pages)
       setLastExport(bytes)
       const exportFileName = fileName?.trim() || 'edited.pdf'

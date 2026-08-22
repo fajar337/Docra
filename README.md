@@ -37,7 +37,7 @@ npm run fixture:pdf
 
 ## Inisialisasi MuPDF
 
-Paket ESM resmi `mupdf` diimpor dari npm. Vite mengecualikannya dari dependency pre-bundling, mempertahankan target build `esnext`, dan membundel `mupdf-wasm.wasm` sebagai asset lokal. Tidak ada worker atau CDN karena distribusi MuPDF 1.28 dapat menginisialisasi WASM langsung dari modul ESM.
+Paket ESM resmi `mupdf` diimpor secara dinamis dari npm saat pengguna membuka PDF pertama kali. Vite mengecualikannya dari dependency pre-bundling, mempertahankan target build `esnext`, memisahkan engine ke lazy chunk, dan membundel `mupdf-wasm.wasm` sebagai asset lokal. PDF page editor/Konva juga baru dimuat setelah dokumen terbuka, sedangkan exporter dan font embedding baru dimuat saat export. Karena resource berat tersebut tidak lagi berada pada jalur startup, halaman awal dan refresh tidak menunggu download/inisialisasi engine 10 MB. Tidak ada worker atau CDN karena distribusi MuPDF 1.28 dapat menginisialisasi WASM langsung dari modul ESM.
 
 `src/pdf/mupdf.ts` menjadi satu pintu konfigurasi logging. Error dan warning MuPDF diteruskan ke console. `src/pdf/loader.ts` membuka `Uint8Array` dengan magic `application/pdf`, menolak dokumen terenkripsi yang membutuhkan password, memvalidasi bahwa dokumen benar-benar PDF, lalu membaca page count, crop bounds, dan text items.
 

@@ -1,17 +1,40 @@
-import mupdf from 'mupdf'
+import type mupdfType from 'mupdf'
 
-let logConfigured = false
+type MuPDF = typeof mupdfType
 
-export function getMuPDF() {
-  if (!logConfigured) {
-    mupdf.setLog({
+let loadedMuPDF: MuPDF | null = null
+let loadingMuPDF: Promise<MuPDF> | null = null
+
+function configureMuPDF(mupdf: MuPDF): MuPDF {
+  mupdf.setLog({
       error: (message) => console.error('[MuPDF]', message),
       warning: (message) => console.warn('[MuPDF]', message),
-    })
-    logConfigured = true
-  }
-
+  })
   return mupdf
 }
 
-export { mupdf }
+export async function initializeMuPDF(): Promise<MuPDF> {
+  if (loadedMuPDF) {
+    return loadedMuPDF
+  }
+
+  loadingMuPDF ??= import('mupdf')
+    .then((module) => configureMuPDF(module.default))
+    .then((mupdf) => {
+      loadedMuPDF = mupdf
+      return mupdf
+    })
+    .catch((error) => {
+      loadingMuPDF = null
+      throw error
+    })
+
+  return loadingMuPDF
+}
+
+export function getMuPDF(): MuPDF {
+  if (!loadedMuPDF) {
+    throw new Error('MuPDF belum selesai dimuat.')
+  }
+  return loadedMuPDF
+}

@@ -1,6 +1,7 @@
 import type { PDFDocument } from 'mupdf'
 import { create } from 'zustand'
 import { loadPDF } from '../pdf/loader'
+import { initializeMuPDF } from '../pdf/mupdf'
 import type { PDFPageInfo } from '../types/pdf'
 
 interface DocumentState {
@@ -35,6 +36,7 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
     await new Promise<void>((resolve) => window.setTimeout(resolve, 0))
 
     try {
+      await initializeMuPDF()
       const loaded = loadPDF(bytes)
       const previousDocument = get().pdfDocument
       set({

@@ -1,7 +1,6 @@
-import type { Color, Font, Quad, Rect } from 'mupdf'
+import type { Color, Font, PDFPage, Quad, Rect } from 'mupdf'
 import type { PDFTextItem } from '../types/pdf'
 import { mupdfRectToEditorRect, quadToRect } from './coordinates'
-import type { mupdf } from './mupdf'
 
 interface WordBuilder {
   text: string
@@ -184,7 +183,7 @@ function shouldStartNewWord(
 }
 
 export function extractTextItems(
-  page: InstanceType<typeof mupdf.PDFPage>,
+  page: PDFPage,
   pageIndex: number,
   pageBounds: Rect,
 ): PDFTextItem[] {

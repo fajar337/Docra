@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef } from 'react'
+import { lazy, Suspense, useEffect, useLayoutEffect, useRef } from 'react'
 import { FileUp, LoaderCircle } from 'lucide-react'
 import type { PDFDocument } from 'mupdf'
 import { useDocumentStore } from '../stores/documentStore'
@@ -7,8 +7,11 @@ import {
   ZOOM_STEP,
   useEditorStore,
 } from '../stores/editorStore'
-import { PDFPage } from './PDFPage'
 import { GlassSurface } from './ui/GlassSurface'
+
+const PDFPage = lazy(() =>
+  import('./PDFPage').then((module) => ({ default: module.PDFPage })),
+)
 
 export function PDFViewer() {
   const viewerRef = useRef<HTMLElement>(null)
@@ -128,12 +131,9 @@ export function PDFViewer() {
     <main ref={viewerRef} className="viewer" aria-label="PDF pages">
       <div className="viewer__pages">
         {pages.map((pageInfo) => (
-          <PDFPage
-            key={pageInfo.pageIndex}
-            document={document}
-            pageInfo={pageInfo}
-            zoom={zoom}
-          />
+          <Suspense key={pageInfo.pageIndex} fallback={null}>
+            <PDFPage document={document} pageInfo={pageInfo} zoom={zoom} />
+          </Suspense>
         ))}
       </div>
     </main>

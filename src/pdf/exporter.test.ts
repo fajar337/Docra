@@ -1,10 +1,11 @@
 import mupdf from 'mupdf'
 import type { PDFPage, Point } from 'mupdf'
-import { describe, expect, it } from 'vitest'
+import { beforeAll, describe, expect, it } from 'vitest'
 import type { EditorObject } from '../types/editor'
 import type { PDFPageInfo } from '../types/pdf'
 import { createReplacementObject } from '../tools/objectFactory'
 import { exportPDF } from './exporter'
+import { initializeMuPDF } from './mupdf'
 import { extractTextItems } from './textExtractor'
 import { safeReplacementBounds } from './textMetrics'
 
@@ -149,6 +150,10 @@ function createUnsupportedFontSourcePDF(): Uint8Array {
 }
 
 describe('MuPDF exporter', () => {
+  beforeAll(async () => {
+    await initializeMuPDF()
+  })
+
   it('bakes editor objects into a PDF that MuPDF can reopen', () => {
     const source = createSourcePDFWithReviewAnnotation()
     const pages: PDFPageInfo[] = [
