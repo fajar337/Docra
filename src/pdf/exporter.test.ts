@@ -1,6 +1,6 @@
 import mupdf from 'mupdf'
-import type { PDFPage, Point } from 'mupdf'
-import { beforeAll, describe, expect, it } from 'vitest'
+import type { Font, PDFPage, Point } from 'mupdf'
+import { beforeAll, describe, expect, it, vi } from 'vitest'
 import type { EditorObject } from '../types/editor'
 import type { PDFPageInfo } from '../types/pdf'
 import { createReplacementObject } from '../tools/objectFactory'
@@ -9,7 +9,7 @@ import { initializeMuPDF } from './mupdf'
 import { extractTextItems } from './textExtractor'
 import { safeReplacementBounds } from './textMetrics'
 
-function createSourcePDF(): Uint8Array {
+function createSourcePDF(content = 'Original text'): Uint8Array {
   const document = new mupdf.PDFDocument()
   try {
     const font = document.addSimpleFont(new mupdf.Font('Helvetica'), 'Latin')
@@ -21,7 +21,7 @@ function createSourcePDF(): Uint8Array {
       [0, 0, 300, 200],
       0,
       resources,
-      'BT /F1 16 Tf 20 50 Td (Original text) Tj ET',
+      `BT /F1 16 Tf 20 50 Td (${content}) Tj ET`,
     )
     document.insertPage(-1, pageObject)
     const buffer = document.saveToBuffer('compress=yes')
@@ -499,6 +499,43 @@ describe('MuPDF exporter', () => {
         page.destroy()
       }
     } finally {
+      reopened.destroy()
+    }
+  })
+
+  it('preserves an existing digit when the subset font cmap cannot encode it', () => {
+    const source = createSourcePDF('11')
+    const document = mupdf.Document.openDocument(source, 'application/pdf').asPDF()!
+    const page = document.loadPage(0) as PDFPage
+    const bounds = page.getBounds()
+    const textItems = extractTextItems(page, 0, bounds)
+    const number = textItems.find((item) => item.text === '11')!
+    page.destroy()
+    document.destroy()
+    const encode = mupdf.Font.prototype.encodeCharacter
+    const spy = vi.spyOn(mupdf.Font.prototype, 'encodeCharacter').mockImplementation(function (this: Font, character) {
+      return character === '1' || character === 49 ? 0 : encode.call(this, character)
+    })
+    let output: Uint8Array
+    try {
+      output = exportPDF(source, [createReplacementObject(number, '1')], [{
+        pageIndex: 0, bounds, width: 300, height: 200, textItems,
+      }])
+    } finally {
+      spy.mockRestore()
+    }
+    const reopened = mupdf.Document.openDocument(output, 'application/pdf').asPDF()!
+    const resultPage = reopened.loadPage(0)
+    const text = resultPage.toStructuredText()
+    try {
+      expect(text.asText().trim()).toBe('1')
+      const names: string[] = []
+      text.walk({ onChar: (_character, _origin, font) => { names.push(font.getName()) } })
+      // DisplayList embeds the actual underlying font instead of substituting Helv.
+      expect(names).toEqual(['NimbusSans-Regular'])
+    } finally {
+      text.destroy()
+      resultPage.destroy()
       reopened.destroy()
     }
   })

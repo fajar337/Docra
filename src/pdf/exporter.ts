@@ -1,9 +1,9 @@
 import type {
-  AnnotColor,
   PDFDocument,
   PDFObject,
   PDFPage,
   Rect,
+  DisplayList,
 } from 'mupdf'
 import type {
   DrawingObject,
@@ -29,6 +29,7 @@ import type { PDFTextItem } from '../types/pdf'
 import { getBundledFont } from './fontAssets'
 
 interface ExportFontCache {
+  appearances: Map<string, DisplayList>
   bundled: Map<TextFontChoice, PDFObject>
   source: Map<
     string,
@@ -50,7 +51,7 @@ function copyBytes(bytes: Uint8Array): Uint8Array {
   return Uint8Array.from(bytes)
 }
 
-function parseHexColor(color: string): AnnotColor {
+function parseHexColor(color: string): [number, number, number] {
   const normalized = color.trim().replace(/^#/, '')
   const expanded =
     normalized.length === 3
@@ -219,10 +220,55 @@ function captureSourceFonts(
   const device = new mupdf.Device({
     fillText: (text, _ctm, colorspace) => {
       try {
+        const observed = new Map<string, Map<number, number>>()
+        // PDF subsets may have ToUnicode mappings but no usable font cmap.
+        text.walk({
+          showGlyph: (font, _trm, glyph, unicode) => {
+            if (glyph < 0 || unicode < 0) return
+            const glyphs = observed.get(font.getName()) ?? new Map<number, number>()
+            glyphs.set(unicode, glyph)
+            observed.set(font.getName(), glyphs)
+          },
+        })
         text.walk({
           beginSpan: (font) => {
             const key = sourceFontCacheKey(font.getName())
             const requestedCharacters = requestedFonts.get(key)
+            for (const object of objects) {
+              if (getTextFontChoice(object) !== 'original' ||
+                  object.fontName !== font.getName() ||
+                  fontCache.appearances.has(object.id) || /[\r\n]/u.test(object.text)) continue
+              const characters = [...object.text]
+              if (characters.every((character) => font.encodeCharacter(character) !== 0)) continue
+              const glyphs = characters.map((character) =>
+                observed.get(font.getName())?.get(character.codePointAt(0)!) ||
+                font.encodeCharacter(character) || 0,
+              )
+              if (glyphs.some((glyph) => glyph === 0)) continue
+              const list = new mupdf.DisplayList([0, 0,
+                Math.max(object.width, 16), Math.max(object.height, object.fontSize * 1.35)])
+              const writer = new mupdf.DisplayListDevice(list)
+              const replacement = new mupdf.Text()
+              try {
+                let x = 0
+                glyphs.forEach((glyph, index) => {
+                  replacement.showGlyph(font,
+                    [object.fontSize, 0, 0, object.fontSize, x, object.fontSize * 0.8],
+                    glyph, characters[index].codePointAt(0)!)
+                  x += font.advanceGlyph(glyph) * object.fontSize
+                })
+                writer.fillText(replacement, mupdf.Matrix.identity,
+                  mupdf.ColorSpace.DeviceRGB, parseHexColor(object.color), 1)
+                writer.close()
+                fontCache.appearances.set(object.id, list)
+              } catch (error) {
+                list.destroy()
+                throw error
+              } finally {
+                replacement.destroy()
+                writer.destroy()
+              }
+            }
             if (
               !requestedCharacters ||
               [...requestedCharacters].some(
@@ -526,7 +572,12 @@ function addTextAnnotation(
   annotation.setOpacity(1)
   annotation.setQuadding(0)
   annotation.update()
-  applySelectedFontAppearance(document, page, annotation, object, fontCache)
+  const appearance = fontCache.appearances.get(object.id)
+  if (appearance) {
+    annotation.setAppearanceFromDisplayList('N', null, getMuPDF().Matrix.identity, appearance)
+  } else {
+    applySelectedFontAppearance(document, page, annotation, object, fontCache)
+  }
 }
 
 function addHighlightAnnotation(
@@ -625,6 +676,7 @@ export function exportPDF(
 ): Uint8Array {
   const mupdf = getMuPDF()
   let document: PDFDocument | null = null
+  const appearances = new Map<string, DisplayList>()
 
   try {
     const openedDocument = mupdf.Document.openDocument(
@@ -638,6 +690,7 @@ export function exportPDF(
     }
 
     const fontCache: ExportFontCache = {
+      appearances,
       bundled: new Map(),
       source: new Map(),
     }
@@ -676,6 +729,7 @@ export function exportPDF(
       { cause: error },
     )
   } finally {
+    appearances.forEach((appearance) => appearance.destroy())
     document?.destroy()
   }
 }
