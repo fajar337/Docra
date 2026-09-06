@@ -19,6 +19,8 @@ export const TEXT_FONT_CHOICES = [
   'roboto-light',
 ] as const
 
+export const DEFAULT_TEXT_FONT = 'roboto-regular' as const
+
 export type TextFontChoice = (typeof TEXT_FONT_CHOICES)[number]
 
 export interface EditorRect {

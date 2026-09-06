@@ -7,6 +7,7 @@ import { createReplacementObject } from '../tools/objectFactory'
 import { exportPDF } from './exporter'
 import { initializeMuPDF } from './mupdf'
 import { extractTextItems } from './textExtractor'
+import { mergeSelectableTextItems } from './textSelection'
 import { safeReplacementBounds } from './textMetrics'
 
 function createSourcePDF(content = 'Original text'): Uint8Array {
@@ -361,7 +362,7 @@ describe('MuPDF exporter', () => {
           textItems,
         }
 
-        const replacement = createReplacementObject(number, '17')
+        const replacement = createReplacementObject(number, '17', 'original')
         const output = exportPDF(source, [replacement], [pageInfo])
         const reopened = mupdf.Document.openDocument(
           output,
@@ -434,6 +435,81 @@ describe('MuPDF exporter', () => {
       }
     } finally {
       sourceDocument.destroy()
+    }
+  })
+
+  it.each([
+    ['Helvetica', createSourcePDF],
+    ['Times-Bold', createMixedSizeSourcePDF],
+  ] as const)('uses the same default digit font for a %s source', (_name, fixture) => {
+    const source = fixture()
+    const document = mupdf.Document.openDocument(source, 'application/pdf').asPDF()!
+    const page = document.loadPage(0) as PDFPage
+    const bounds = page.getBounds()
+    const textItems = extractTextItems(page, 0, bounds)
+    const item = textItems.find((value) => value.text === '24') ?? textItems[0]
+    const replacement = createReplacementObject(item, '0123456789')
+    expect(replacement.fontChoice).toBe('roboto-regular')
+    replacement.width = 290
+    page.destroy()
+    document.destroy()
+    const output = exportPDF(source, [replacement], [{
+      pageIndex: 0, bounds, width: 300, height: 200, textItems,
+    }])
+    const reopened = mupdf.Document.openDocument(output, 'application/pdf').asPDF()!
+    const resultPage = reopened.loadPage(0)
+    const text = resultPage.toStructuredText()
+    try {
+      const digits: string[] = []
+      const names: string[] = []
+      text.walk({ onChar: (character, origin, font) => {
+        if (/^[0-9]$/u.test(character)) {
+          digits.push(character)
+          names.push(font.getName())
+          expect(origin[1]).toBeCloseTo(item.baselineY!, 2)
+        }
+      } })
+      expect(digits.join('')).toBe('0123456789')
+      expect(new Set(names)).toEqual(new Set(['Roboto-Regular']))
+    } finally {
+      text.destroy()
+      resultPage.destroy()
+      reopened.destroy()
+    }
+  })
+
+  it('changes only the digits and preserves the original percent sign', () => {
+    const source = createSourcePDF('17%')
+    const document = mupdf.Document.openDocument(source, 'application/pdf').asPDF()!
+    const page = document.loadPage(0) as PDFPage
+    const bounds = page.getBounds()
+    const textItems = extractTextItems(page, 0, bounds)
+    const selectable = mergeSelectableTextItems(textItems)
+    expect(selectable.map((item) => item.text)).toEqual(['17', '%'])
+    const number = selectable[0]
+    const percent = selectable[1]
+    expect(createReplacementObject(percent, '%').fontChoice).toBe('original')
+    const replacement = createReplacementObject(number, '14')
+    expect(replacement.fontChoice).toBe('roboto-regular')
+    page.destroy()
+    document.destroy()
+    const output = exportPDF(source, [replacement], [{
+      pageIndex: 0, bounds, width: 300, height: 200, textItems,
+    }])
+    const reopened = mupdf.Document.openDocument(output, 'application/pdf').asPDF()!
+    const resultPage = reopened.loadPage(0) as PDFPage
+    try {
+      const result = extractTextItems(resultPage, 0, bounds)
+      const resultPercent = result.find((item) => item.text === '%')!
+      expect(resultPercent).toBeDefined()
+      expect(resultPercent.fontName).toBe(percent.fontName)
+      expect(resultPercent.fontSize).toBe(percent.fontSize)
+      expect(resultPercent.baselineX).toBeCloseTo(percent.baselineX!, 3)
+      expect(resultPercent.baselineY).toBeCloseTo(percent.baselineY!, 3)
+      expect(result.find((item) => item.text === '14')?.fontName).toBe('Roboto-Regular')
+    } finally {
+      resultPage.destroy()
+      reopened.destroy()
     }
   })
 
@@ -518,7 +594,7 @@ describe('MuPDF exporter', () => {
     })
     let output: Uint8Array
     try {
-      output = exportPDF(source, [createReplacementObject(number, '1')], [{
+      output = exportPDF(source, [createReplacementObject(number, '1', 'original')], [{
         pageIndex: 0, bounds, width: 300, height: 200, textItems,
       }])
     } finally {
@@ -556,7 +632,7 @@ describe('MuPDF exporter', () => {
       baselineX: 20,
       baselineY: 50,
     }
-    const replacement = createReplacementObject(sourceItem, 'OFF')
+    const replacement = createReplacementObject(sourceItem, 'OFF', 'original')
     const output = exportPDF(source, [replacement], [
       {
         pageIndex: 0,

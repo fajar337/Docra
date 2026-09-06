@@ -3,7 +3,7 @@ import { useEditorStore } from '../stores/editorStore'
 import { useHistoryStore } from '../stores/historyStore'
 import type { EditorTextObject, TextFontChoice } from '../types/editor'
 import type { PDFTextItem } from '../types/pdf'
-import { createReplacementObject } from '../tools/objectFactory'
+import { createReplacementObject, defaultReplacementFont } from '../tools/objectFactory'
 import { minimumPreviewTextWidth } from '../pdf/textMetrics'
 import { LiquidGlassSelect } from './ui/LiquidGlassSelect'
 
@@ -12,7 +12,7 @@ const FONT_OPTIONS: Array<{ value: TextFontChoice; label: string }> = [
   { value: 'arial', label: 'Arial' },
   { value: 'helvetica', label: 'Helvetica' },
   { value: 'helvetica-neue-light', label: 'Helvetica Neue Light' },
-  { value: 'roboto-regular', label: 'Roboto Regular' },
+  { value: 'roboto-regular', label: 'Roboto Regular (default)' },
   { value: 'roboto-light', label: 'Roboto Light' },
 ]
 
@@ -69,7 +69,7 @@ function SelectedPDFTextEditor({ item }: { item: PDFTextItem }) {
   )
   const [replacement, setReplacement] = useState(existing?.text ?? item.text)
   const [fontChoice, setFontChoice] = useState<TextFontChoice>(
-    existing?.fontChoice ?? 'original',
+    existing?.fontChoice ?? defaultReplacementFont(item.text),
   )
 
   const submit = (event: FormEvent) => {

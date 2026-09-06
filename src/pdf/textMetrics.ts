@@ -42,9 +42,9 @@ export function previewTextFont(
         style: '300',
       }
     case 'roboto-regular':
-      return { family: 'Roboto, Arial, sans-serif', style: '400' }
+      return { family: 'Docra Roboto, Arial, sans-serif', style: '400' }
     case 'roboto-light':
-      return { family: 'Roboto, Arial, sans-serif', style: '300' }
+      return { family: 'Docra Roboto, Arial, sans-serif', style: '300' }
     case 'original':
     default: {
       const normalized = sourceFontName?.toLowerCase() ?? ''

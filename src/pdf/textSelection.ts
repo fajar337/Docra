@@ -26,6 +26,9 @@ function areSelectableNeighbors(
   first: PDFTextItem,
   second: PDFTextItem,
 ): boolean {
+  // A percentage's number and symbol must retain independent typography.
+  if (first.text.includes('%') || second.text.includes('%')) return false
+
   if (first.pageIndex !== second.pageIndex || !haveCompatibleTypography(first, second)) {
     return false
   }

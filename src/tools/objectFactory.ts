@@ -1,3 +1,4 @@
+import { DEFAULT_TEXT_FONT } from '../types/editor'
 import type {
   DrawingObject,
   EditorRect,
@@ -11,6 +12,10 @@ import {
   minimumPreviewTextWidth,
   replacementTextPosition,
 } from '../pdf/textMetrics'
+
+export function defaultReplacementFont(text: string): TextFontChoice {
+  return /^\s*[+-]?\d+(?:[.,]\d+)?\s*$/u.test(text) ? DEFAULT_TEXT_FONT : 'original'
+}
 
 function createId(prefix: string): string {
   return `${prefix}:${crypto.randomUUID()}`
@@ -31,7 +36,7 @@ export function createTextObject(
     height: 26,
     text: 'Text',
     fontSize: 16,
-    fontChoice: 'helvetica',
+    fontChoice: DEFAULT_TEXT_FONT,
     color: '#111827',
     rotation: 0,
     source: 'added',
@@ -41,7 +46,7 @@ export function createTextObject(
 export function createReplacementObject(
   item: PDFTextItem,
   replacement: string,
-  fontChoice: TextFontChoice = 'original',
+  fontChoice: TextFontChoice = defaultReplacementFont(replacement),
 ): EditorTextObject {
   const fontSize = item.fontSize ?? Math.max(8, item.height * 0.82)
   const position = replacementTextPosition(item, fontSize)

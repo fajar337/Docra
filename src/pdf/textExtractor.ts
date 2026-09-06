@@ -157,6 +157,9 @@ function shouldStartNewWord(
   fontSize: number,
   color: string,
 ): boolean {
+  // Keep the percent sign independently selectable even at the same font size.
+  if (nextCharacter === '%' || current.text === '%') return true
+
   const horizontalGap = nextRect[0] - current.rect[2]
   const currentCenter = (current.rect[1] + current.rect[3]) / 2
   const nextCenter = (nextRect[1] + nextRect[3]) / 2
