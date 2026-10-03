@@ -579,7 +579,46 @@ describe('MuPDF exporter', () => {
     }
   })
 
-  it('preserves an existing digit when the subset font cmap cannot encode it', () => {
+  it('keeps a moved percent sign on its source baseline when the subset font has no cmap', () => {
+    const source = createSourcePDF('17%')
+    const document = mupdf.Document.openDocument(source, 'application/pdf').asPDF()!
+    const page = document.loadPage(0) as PDFPage
+    const bounds = page.getBounds()
+    const textItems = extractTextItems(page, 0, bounds)
+    const percent = textItems.find((item) => item.text === '%')!
+    const replacement = createReplacementObject(percent, '%', 'original')
+    replacement.x -= 8
+    page.destroy()
+    document.destroy()
+
+    const encode = mupdf.Font.prototype.encodeCharacter
+    const spy = vi.spyOn(mupdf.Font.prototype, 'encodeCharacter').mockImplementation(function (this: Font, character) {
+      return character === '%' || character === 37 ? 0 : encode.call(this, character)
+    })
+    let output: Uint8Array
+    try {
+      output = exportPDF(source, [replacement], [{
+        pageIndex: 0, bounds, width: 300, height: 200, textItems,
+      }])
+    } finally {
+      spy.mockRestore()
+    }
+
+    const reopened = mupdf.Document.openDocument(output, 'application/pdf').asPDF()!
+    const resultPage = reopened.loadPage(0) as PDFPage
+    try {
+      const result = extractTextItems(resultPage, 0, bounds)
+      const signs = result.filter((item) => item.text === '%')
+      expect(signs).toHaveLength(1)
+      expect(signs[0].baselineX).toBeCloseTo(replacement.x, 2)
+      expect(signs[0].baselineY).toBeCloseTo(percent.baselineY!, 2)
+    } finally {
+      resultPage.destroy()
+      reopened.destroy()
+    }
+  })
+
+  it('keeps an existing digit legible when the subset font cmap cannot encode it', () => {
     const source = createSourcePDF('11')
     const document = mupdf.Document.openDocument(source, 'application/pdf').asPDF()!
     const page = document.loadPage(0) as PDFPage
@@ -607,8 +646,8 @@ describe('MuPDF exporter', () => {
       expect(text.asText().trim()).toBe('1')
       const names: string[] = []
       text.walk({ onChar: (_character, _origin, font) => { names.push(font.getName()) } })
-      // DisplayList embeds the actual underlying font instead of substituting Helv.
-      expect(names).toEqual(['NimbusSans-Regular'])
+      // Use Helvetica when the source subset cannot encode the character safely.
+      expect(names).toEqual(['Helvetica'])
     } finally {
       text.destroy()
       resultPage.destroy()
