@@ -1,7 +1,7 @@
 import { useMemo, useState, type FormEvent } from 'react'
 import { useEditorStore } from '../stores/editorStore'
 import { useHistoryStore } from '../stores/historyStore'
-import type { EditorTextObject, TextFontChoice } from '../types/editor'
+import type { EditorTextObject, TextFontChoice, TextWeight } from '../types/editor'
 import type { PDFTextItem } from '../types/pdf'
 import { createReplacementObject, defaultReplacementFont } from '../tools/objectFactory'
 import { minimumPreviewTextWidth } from '../pdf/textMetrics'
@@ -52,6 +52,33 @@ function FontSelect({
   )
 }
 
+function WeightSelect({
+  id,
+  value,
+  onChange,
+}: {
+  id: string
+  value: TextWeight
+  onChange: (weight: TextWeight) => void
+}) {
+  const labelId = `${id}-label`
+  return (
+    <div className="field-stack">
+      <label id={labelId} htmlFor={id}>Gaya teks</label>
+      <LiquidGlassSelect
+        id={id}
+        labelledBy={labelId}
+        value={value}
+        options={[
+          { value: 'normal', label: 'Biasa' },
+          { value: 'bold', label: 'Tebal' },
+        ]}
+        onChange={(weight) => onChange(weight as TextWeight)}
+      />
+    </div>
+  )
+}
+
 function SelectedPDFTextEditor({ item }: { item: PDFTextItem }) {
   const objects = useHistoryStore((state) => state.present)
   const addObject = useHistoryStore((state) => state.addObject)
@@ -71,16 +98,40 @@ function SelectedPDFTextEditor({ item }: { item: PDFTextItem }) {
   const [fontChoice, setFontChoice] = useState<TextFontChoice>(
     existing?.fontChoice ?? defaultReplacementFont(item.text),
   )
+  const [fontWeight, setFontWeight] = useState<TextWeight>(
+    existing?.fontWeight ??
+      ((existing?.fontChoice ?? defaultReplacementFont(item.text)) === 'original' &&
+      item.fontName?.toLowerCase().includes('bold') ? 'bold' : 'normal'),
+  )
 
   const submit = (event: FormEvent) => {
     event.preventDefault()
     if (existing) {
-      updateObject(existing.id, { text: replacement, fontChoice })
+      updateObject(existing.id, {
+        text: replacement,
+        fontChoice,
+        fontWeight,
+        width: Math.max(
+          existing.width,
+          minimumPreviewTextWidth(
+            replacement,
+            existing.fontSize,
+            fontChoice,
+            existing.fontName,
+            fontWeight,
+          ),
+        ),
+      })
       selectObject(existing.id)
       return
     }
 
     const object = createReplacementObject(item, replacement, fontChoice)
+    object.fontWeight = fontWeight
+    object.width = Math.max(
+      object.width,
+      minimumPreviewTextWidth(replacement, object.fontSize, fontChoice, object.fontName, fontWeight),
+    )
     addObject(object)
     selectObject(object.id)
   }
@@ -105,6 +156,7 @@ function SelectedPDFTextEditor({ item }: { item: PDFTextItem }) {
         sourceFontName={item.fontName}
         onChange={setFontChoice}
       />
+      <WeightSelect id="replacement-weight" value={fontWeight} onChange={setFontWeight} />
       <button className="button--accent" type="submit">
         Apply replacement
       </button>
@@ -126,6 +178,11 @@ function TextObjectEditor({ object }: { object: EditorTextObject }) {
     object.fontChoice ??
       (object.source === 'replacement' ? 'original' : 'helvetica'),
   )
+  const [fontWeight, setFontWeight] = useState<TextWeight>(
+    object.fontWeight ??
+      ((object.fontChoice ?? (object.source === 'replacement' ? 'original' : 'helvetica')) === 'original' &&
+      object.fontName?.toLowerCase().includes('bold') ? 'bold' : 'normal'),
+  )
   const [color, setColor] = useState(object.color)
 
   const submit = (event: FormEvent) => {
@@ -136,6 +193,7 @@ function TextObjectEditor({ object }: { object: EditorTextObject }) {
       color,
       fontSize: nextFontSize,
       fontChoice,
+      fontWeight,
       width: Math.max(
         object.width,
         minimumPreviewTextWidth(
@@ -143,6 +201,7 @@ function TextObjectEditor({ object }: { object: EditorTextObject }) {
           nextFontSize,
           fontChoice,
           object.fontName,
+          fontWeight,
         ),
       ),
     })
@@ -169,6 +228,7 @@ function TextObjectEditor({ object }: { object: EditorTextObject }) {
         sourceFontName={object.fontName}
         onChange={setFontChoice}
       />
+      <WeightSelect id="object-weight" value={fontWeight} onChange={setFontWeight} />
       <div className="inspector-grid">
         <div className="field-stack">
           <label htmlFor="font-size">Font size</label>

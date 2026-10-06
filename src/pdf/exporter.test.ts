@@ -579,6 +579,89 @@ describe('MuPDF exporter', () => {
     }
   })
 
+  it('exports a bold text object with a bold font', () => {
+    const source = createSourcePDF()
+    const output = exportPDF(source, [{
+      id: 'text:bold',
+      type: 'text',
+      pageIndex: 0,
+      x: 20,
+      y: 20,
+      width: 180,
+      height: 28,
+      text: 'Bold text',
+      fontSize: 16,
+      fontChoice: 'roboto-regular',
+      fontWeight: 'bold',
+      color: '#111827',
+      rotation: 0,
+      source: 'added',
+    }], [{
+      pageIndex: 0,
+      bounds: [0, 0, 300, 200],
+      width: 300,
+      height: 200,
+      textItems: [],
+    }])
+    const document = mupdf.Document.openDocument(output, 'application/pdf').asPDF()!
+    try {
+      const page = document.loadPage(0)
+      try {
+        const text = page.toStructuredText()
+        try {
+          const fonts: string[] = []
+          text.walk({ onChar: (character, _origin, font) => {
+            if (character === 'B') fonts.push(font.getName())
+          } })
+          expect(fonts).toEqual(['Roboto-Bold'])
+        } finally {
+          text.destroy()
+        }
+      } finally {
+        page.destroy()
+      }
+    } finally {
+      document.destroy()
+    }
+  })
+
+  it('exports a formerly bold PDF word as normal text when selected', () => {
+    const source = createMixedSizeSourcePDF()
+    const document = mupdf.Document.openDocument(source, 'application/pdf').asPDF()!
+    const page = document.loadPage(0) as PDFPage
+    const bounds = page.getBounds()
+    const textItems = extractTextItems(page, 0, bounds)
+    const original = textItems.find((item) => item.text === '24')!
+    page.destroy()
+    document.destroy()
+
+    const replacement = createReplacementObject(original, '17', 'original')
+    replacement.fontWeight = 'normal'
+    const output = exportPDF(source, [replacement], [{
+      pageIndex: 0, bounds, width: 300, height: 200, textItems,
+    }])
+    const reopened = mupdf.Document.openDocument(output, 'application/pdf').asPDF()!
+    try {
+      const resultPage = reopened.loadPage(0)
+      try {
+        const text = resultPage.toStructuredText()
+        try {
+          const fonts: string[] = []
+          text.walk({ onChar: (character, _origin, font) => {
+            if (character === '1' || character === '7') fonts.push(font.getName())
+          } })
+          expect(fonts).toEqual(['Roboto-Regular', 'Roboto-Regular'])
+        } finally {
+          text.destroy()
+        }
+      } finally {
+        resultPage.destroy()
+      }
+    } finally {
+      reopened.destroy()
+    }
+  })
+
   it('keeps a moved percent sign on its source baseline when the subset font has no cmap', () => {
     const source = createSourcePDF('17%')
     const document = mupdf.Document.openDocument(source, 'application/pdf').asPDF()!

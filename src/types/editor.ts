@@ -22,6 +22,7 @@ export const TEXT_FONT_CHOICES = [
 export const DEFAULT_TEXT_FONT = 'roboto-regular' as const
 
 export type TextFontChoice = (typeof TEXT_FONT_CHOICES)[number]
+export type TextWeight = 'normal' | 'bold'
 
 export interface EditorRect {
   x: number
@@ -46,6 +47,7 @@ export interface EditorTextObject extends EditorObjectBase {
   fontSize: number
   fontName?: string
   fontChoice?: TextFontChoice
+  fontWeight?: TextWeight
   color: string
   source: 'added' | 'replacement'
   replacementFor?: {

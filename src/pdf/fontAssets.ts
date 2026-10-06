@@ -1,5 +1,6 @@
 import robotoLightDataUrl from '@expo-google-fonts/roboto/300Light/Roboto_300Light.ttf?inline'
 import robotoRegularDataUrl from '@expo-google-fonts/roboto/400Regular/Roboto_400Regular.ttf?inline'
+import robotoBoldDataUrl from '@expo-google-fonts/roboto/700Bold/Roboto_700Bold.ttf?inline'
 import type { TextFontChoice } from '../types/editor'
 
 interface BundledFont {
@@ -7,7 +8,7 @@ interface BundledFont {
   bytes: Uint8Array
 }
 
-const fontCache = new Map<TextFontChoice, BundledFont>()
+const fontCache = new Map<TextFontChoice | 'roboto-bold', BundledFont>()
 
 function decodeDataUrl(dataUrl: string): Uint8Array {
   const separator = dataUrl.indexOf(',')
@@ -24,7 +25,7 @@ function decodeDataUrl(dataUrl: string): Uint8Array {
 }
 
 export function getBundledFont(
-  fontChoice: TextFontChoice,
+  fontChoice: TextFontChoice | 'roboto-bold',
 ): BundledFont | null {
   const cached = fontCache.get(fontChoice)
   if (cached) {
@@ -34,6 +35,8 @@ export function getBundledFont(
   const definition =
     fontChoice === 'roboto-regular'
       ? { name: 'Roboto', dataUrl: robotoRegularDataUrl }
+      : fontChoice === 'roboto-bold'
+        ? { name: 'Roboto Bold', dataUrl: robotoBoldDataUrl }
       : fontChoice === 'roboto-light'
         ? { name: 'Roboto Light', dataUrl: robotoLightDataUrl }
         : null

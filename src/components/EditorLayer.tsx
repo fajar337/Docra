@@ -352,7 +352,7 @@ export function EditorLayer({ pageInfo, zoom }: EditorLayerProps) {
   })
 
   const renderTextObject = (object: EditorTextObject) => {
-    const font = previewTextFont(object.fontChoice, object.fontName)
+    const font = previewTextFont(object.fontChoice, object.fontName, object.fontWeight)
     return (
       <Group
         key={object.id}

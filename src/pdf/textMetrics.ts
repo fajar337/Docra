@@ -1,5 +1,5 @@
 import type { PDFTextItem } from '../types/pdf'
-import type { EditorRect } from '../types/editor'
+import type { EditorRect, TextWeight } from '../types/editor'
 import type { TextFontChoice } from '../types/editor'
 
 // MuPDF's generated Helvetica FreeText appearance and Konva's modern text
@@ -30,7 +30,19 @@ export function previewFontFamily(fontName?: string): string {
 export function previewTextFont(
   fontChoice: TextFontChoice | undefined,
   sourceFontName?: string,
+  fontWeight?: TextWeight,
 ): { family: string; style: string } {
+  const sourceIsBold = sourceFontName?.toLowerCase().includes('bold') ?? false
+  if (
+    fontWeight === 'bold' && (fontChoice !== 'original' || !sourceIsBold) ||
+    fontWeight === 'normal' && fontChoice === 'original' && sourceIsBold
+  ) {
+    return {
+      family: 'Docra Roboto, Arial, sans-serif',
+      style: fontWeight === 'bold' ? 'bold' : '400',
+    }
+  }
+
   switch (fontChoice) {
     case 'arial':
       return { family: 'Arial, Helvetica, sans-serif', style: 'normal' }
@@ -67,8 +79,9 @@ export function minimumPreviewTextWidth(
   fontSize: number,
   fontChoice: TextFontChoice | undefined,
   sourceFontName?: string,
+  fontWeight?: TextWeight,
 ): number {
-  const font = previewTextFont(fontChoice, sourceFontName)
+  const font = previewTextFont(fontChoice, sourceFontName, fontWeight)
   let measuredWidth = 0
 
   if (typeof document !== 'undefined') {

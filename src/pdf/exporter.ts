@@ -28,7 +28,7 @@ import type { PDFTextItem } from '../types/pdf'
 import { getBundledFont } from './fontAssets'
 
 interface ExportFontCache {
-  bundled: Map<TextFontChoice, PDFObject>
+  bundled: Map<TextFontChoice | 'roboto-bold', PDFObject>
   source: Map<
     string,
     {
@@ -189,7 +189,12 @@ function captureSourceFonts(
   const requestedFonts = new Map<string, Set<string>>()
 
   objects.forEach((object) => {
-    if (getTextFontChoice(object) !== 'original' || !object.fontName) {
+    if (
+      getTextFontChoice(object) !== 'original' ||
+      !object.fontName ||
+      (object.fontWeight !== undefined &&
+        (object.fontWeight === 'bold') !== object.fontName.toLowerCase().includes('bold'))
+    ) {
       return
     }
 
@@ -330,7 +335,14 @@ function getSelectedFontResource(
   object: EditorTextObject,
   fontCache: ExportFontCache,
 ): PDFObject | null {
-  const fontChoice = getTextFontChoice(object)
+  const selectedChoice = getTextFontChoice(object)
+  const sourceIsBold = object.fontName?.toLowerCase().includes('bold') ?? false
+  const fontChoice = (
+    object.fontWeight === 'bold' && (selectedChoice !== 'original' || !sourceIsBold) ||
+    object.fontWeight === 'normal' && selectedChoice === 'original' && sourceIsBold
+  )
+    ? object.fontWeight === 'bold' ? 'roboto-bold' : 'roboto-regular'
+    : selectedChoice
 
   if (fontChoice === 'original') {
     if (!object.fontName) {
