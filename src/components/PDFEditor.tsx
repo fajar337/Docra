@@ -8,6 +8,8 @@ import { InspectorPanel } from './InspectorPanel'
 import { PDFViewer } from './PDFViewer'
 import { Toolbar } from './Toolbar'
 import { GlassSurface } from './ui/GlassSurface'
+import { imageFromFile } from '../tools/images'
+import { pasteImage } from '../tools/imageClipboard'
 import '../styles/editor.css'
 
 function isEditingTarget(target: EventTarget | null): boolean {
@@ -55,6 +57,19 @@ export function PDFEditor() {
       }
 
       const modifier = event.ctrlKey || event.metaKey
+      if (modifier && event.key.toLowerCase() === 'c') {
+        const object = useHistoryStore.getState().present.find((item) => item.id === selectedObjectId)
+        if (object?.type === 'image') {
+          event.preventDefault()
+          useEditorStore.getState().copyImage(object)
+        }
+        return
+      }
+      if (modifier && event.key.toLowerCase() === 'v' && useEditorStore.getState().imageClipboard) {
+        event.preventDefault()
+        pasteImage()
+        return
+      }
       if (modifier && event.key.toLowerCase() === 'z') {
         event.preventDefault()
         if (event.shiftKey) {
@@ -93,6 +108,23 @@ export function PDFEditor() {
       resetSelection()
     } catch {
       // documentStore already exposes a visible and logged error.
+    }
+  }
+
+  const handleAddImage = async (file: File) => {
+    const pageIndex = useEditorStore.getState().selectedPageIndex
+    const page = pages.find((item) => item.pageIndex === pageIndex) ?? pages[0]
+    if (!page) return
+    try {
+      const image = await imageFromFile(file, page)
+      // Ignore an import if the user opened another document while it decoded.
+      if (useDocumentStore.getState().pdfDocument !== pdfDocument) return
+      useHistoryStore.getState().addObject(image)
+      useEditorStore.getState().setActiveTool('select')
+      selectObject(image.id)
+      useEditorStore.getState().setSelectedPage(page.pageIndex)
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Gagal menambahkan gambar.')
     }
   }
 
@@ -141,6 +173,7 @@ export function PDFEditor() {
         canUndo={canUndo}
         canRedo={canRedo}
         onOpen={handleOpen}
+        onAddImage={handleAddImage}
         onExport={() => createExport(false)}
         onTestExport={() => createExport(true)}
         onUndo={undo}

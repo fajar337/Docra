@@ -4,6 +4,7 @@ import {
   FilePenLine,
   FolderOpen,
   Highlighter,
+  ImagePlus,
   LoaderCircle,
   MousePointer2,
   Pencil,
@@ -52,6 +53,7 @@ interface ToolbarProps {
   canUndo: boolean
   canRedo: boolean
   onOpen: (file: File) => Promise<void>
+  onAddImage: (file: File) => Promise<void>
   onExport: () => Promise<void>
   onTestExport: () => Promise<void>
   onUndo: () => void
@@ -66,6 +68,7 @@ export function Toolbar({
   canUndo,
   canRedo,
   onOpen,
+  onAddImage,
   onExport,
   onTestExport,
   onUndo,
@@ -471,6 +474,22 @@ export function Toolbar({
               <span>{label}</span>
             </button>
           ))}
+          <label className="tool-strip__image file-button" aria-disabled={!hasDocument}>
+            <ImagePlus className="button__icon" aria-hidden="true" />
+            <span>Add Image</span>
+            <input
+              className="visually-hidden"
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/gif,image/bmp"
+              aria-label="Add Image"
+              disabled={!hasDocument}
+              onChange={(event) => {
+                const file = event.target.files?.[0]
+                event.target.value = ''
+                if (file) void onAddImage(file)
+              }}
+            />
+          </label>
         </div>
       </nav>
       {activeTool === 'draw' ? (

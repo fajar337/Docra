@@ -500,6 +500,43 @@
   white-space: nowrap;
 }
 
+.tool-strip__image {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.tool-strip__image:focus-within {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.image-name {
+  overflow-wrap: anywhere;
+}
+
+.image-crop {
+  display: grid;
+  gap: var(--space-sm);
+}
+
+.image-crop__preview {
+  background: var(--color-paper-2);
+  display: grid;
+  overflow: hidden;
+  border-radius: var(--radius-input);
+}
+
+.image-crop__preview img {
+  display: block;
+  grid-area: 1 / 1;
+  height: auto;
+  width: 100%;
+}
+
+.image-crop__original {
+  opacity: 0.25;
+}
+
 .error-banner {
   align-items: center;
   background: var(--color-danger-soft);

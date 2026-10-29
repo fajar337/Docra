@@ -6,6 +6,8 @@ import type { PDFTextItem } from '../types/pdf'
 import { createReplacementObject, defaultReplacementFont } from '../tools/objectFactory'
 import { minimumPreviewTextWidth } from '../pdf/textMetrics'
 import { LiquidGlassSelect } from './ui/LiquidGlassSelect'
+import { ImageObjectEditor } from './ImageObjectEditor'
+import { pasteImage } from '../tools/imageClipboard'
 
 const FONT_OPTIONS: Array<{ value: TextFontChoice; label: string }> = [
   { value: 'original', label: 'Original PDF font' },
@@ -264,6 +266,7 @@ function TextObjectEditor({ object }: { object: EditorTextObject }) {
 }
 
 export function InspectorPanel() {
+  const imageClipboard = useEditorStore((state) => state.imageClipboard)
   const selectedPdfText = useEditorStore((state) => state.selectedPdfText)
   const selectedObjectId = useEditorStore((state) => state.selectedObjectId)
   const selectObject = useEditorStore((state) => state.selectObject)
@@ -283,10 +286,13 @@ export function InspectorPanel() {
   return (
     <section className="side-panel__section" aria-labelledby="inspector-title">
       <h2 id="inspector-title">Inspector</h2>
+      {imageClipboard ? <button type="button" onClick={pasteImage}>Paste gambar</button> : null}
       {selectedPdfText ? (
         <SelectedPDFTextEditor key={selectedPdfText.id} item={selectedPdfText} />
       ) : selectedObject?.type === 'text' ? (
         <TextObjectEditor key={selectedObject.id} object={selectedObject} />
+      ) : selectedObject?.type === 'image' ? (
+        <ImageObjectEditor key={selectedObject.id} object={selectedObject} />
       ) : selectedObject ? (
         <div className="object-summary">
           <p>

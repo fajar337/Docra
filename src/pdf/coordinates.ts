@@ -3,6 +3,7 @@ import type {
   DrawingObject,
   EditorRect,
   HighlightObject,
+  ImageObject,
   RedactionObject,
 } from '../types/editor'
 
@@ -80,7 +81,7 @@ export function normalizeDraggedRect(
   }
 }
 
-type RotatableRect = RedactionObject | HighlightObject
+type RotatableRect = RedactionObject | HighlightObject | ImageObject
 
 export function rectObjectToPageQuad(object: RotatableRect): CoordinatePoint[] {
   const radians = (object.rotation * Math.PI) / 180

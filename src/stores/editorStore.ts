@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { EditorTool } from '../types/editor'
+import type { EditorTool, ImageObject } from '../types/editor'
 import type { PDFTextItem } from '../types/pdf'
 
 export const MIN_ZOOM = 0.25
@@ -18,6 +18,8 @@ interface EditorState {
   selectedPageIndex: number | null
   zoom: number
   drawWidth: number
+  imageClipboard: ImageObject | null
+  copyImage: (image: ImageObject) => void
   setActiveTool: (tool: EditorTool) => void
   selectObject: (objectId: string | null) => void
   selectPdfText: (item: PDFTextItem | null) => void
@@ -34,6 +36,8 @@ export const useEditorStore = create<EditorState>((set) => ({
   selectedPageIndex: null,
   zoom: 1,
   drawWidth: 3,
+  imageClipboard: null,
+  copyImage: (image) => set({ imageClipboard: { ...image } }),
 
   setActiveTool: (activeTool) =>
     set({ activeTool, selectedPdfText: null, selectedObjectId: null }),

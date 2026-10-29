@@ -10,6 +10,7 @@ import type {
   EditorRect,
   EditorTextObject,
   HighlightObject,
+  ImageObject,
   RedactionObject,
   TextFontChoice,
 } from '../types/editor'
@@ -577,6 +578,35 @@ function addDrawingAnnotation(
   annotation.update()
 }
 
+function addImageAnnotation(page: PDFPage, object: ImageObject, pageBounds: Rect): void {
+  const mupdf = getMuPDF()
+  const encoded = object.dataUrl.split(',')[1]
+  const bytes = Uint8Array.from(atob(encoded), (character) => character.charCodeAt(0))
+  const image = new mupdf.Image(bytes)
+  const bounds = editorRectToMupdfRect(pagePointsToBounds(rectObjectToPageQuad(object)), pageBounds)
+  const list = new mupdf.DisplayList(bounds)
+  const device = new mupdf.DisplayListDevice(list)
+  try {
+    const radians = object.rotation * Math.PI / 180
+    const cos = Math.cos(radians)
+    const sin = Math.sin(radians)
+    device.fillImage(image, [
+      object.width * cos, object.width * sin,
+      -object.height * sin, object.height * cos,
+      object.x + pageBounds[0], object.y + pageBounds[1],
+    ], 1)
+    device.close()
+    const annotation = page.createAnnotation('Stamp')
+    markAnnotation(annotation)
+    annotation.setRect(bounds)
+    annotation.setAppearanceFromDisplayList('N', null, [1, 0, 0, 1, 0, 0], list)
+  } finally {
+    device.destroy()
+    list.destroy()
+    image.destroy()
+  }
+}
+
 function applyPageObjects(
   document: PDFDocument,
   pageInfo: PDFPageInfo,
@@ -591,13 +621,6 @@ function applyPageObjects(
     const redactions = objects.filter(
       (object): object is RedactionObject => object.type === 'redaction',
     )
-    const highlights = objects.filter(
-      (object): object is HighlightObject => object.type === 'highlight',
-    )
-    const drawings = objects.filter(
-      (object): object is DrawingObject => object.type === 'drawing',
-    )
-
     captureSourceFonts(document, page, textObjects, fontCache)
 
     removeReplacedTextAnnotations(page, textObjects)
@@ -608,15 +631,22 @@ function applyPageObjects(
       pageInfo.textItems,
     )
     applyManualRedactions(page, redactions, pageInfo.bounds)
-    textObjects.forEach((object) =>
-      addTextAnnotation(document, page, object, pageInfo.bounds, fontCache),
-    )
-    highlights.forEach((object) =>
-      addHighlightAnnotation(page, object, pageInfo.bounds),
-    )
-    drawings.forEach((object) =>
-      addDrawingAnnotation(page, object, pageInfo.bounds),
-    )
+    objects.forEach((object) => {
+      switch (object.type) {
+        case 'text':
+          addTextAnnotation(document, page, object, pageInfo.bounds, fontCache)
+          break
+        case 'highlight':
+          addHighlightAnnotation(page, object, pageInfo.bounds)
+          break
+        case 'drawing':
+          addDrawingAnnotation(page, object, pageInfo.bounds)
+          break
+        case 'image':
+          addImageAnnotation(page, object, pageInfo.bounds)
+          break
+      }
+    })
     page.update()
   } finally {
     page.destroy()

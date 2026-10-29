@@ -35,6 +35,7 @@ import type {
 import type { PDFPageInfo } from '../types/pdf'
 import { previewTextFont, safeReplacementBounds } from '../pdf/textMetrics'
 import { mergeSelectableTextItems } from '../pdf/textSelection'
+import { ImageNode } from './ImageNode'
 
 type DraftObject =
   | {
@@ -524,6 +525,20 @@ export function EditorLayer({ pageInfo, zoom }: EditorLayerProps) {
 
         {pageObjects.map((object) => {
           switch (object.type) {
+            case 'image':
+              return (
+                <ImageNode
+                  key={object.id}
+                  ref={(node: Konva.Image | null) => registerNode(object.id, node)}
+                  dataUrl={object.dataUrl}
+                  x={object.x}
+                  y={object.y}
+                  width={object.width}
+                  height={object.height}
+                  rotation={object.rotation}
+                  {...commonObjectProps(object)}
+                />
+              )
             case 'text':
               return renderTextObject(object)
             case 'redaction':
@@ -582,7 +597,7 @@ export function EditorLayer({ pageInfo, zoom }: EditorLayerProps) {
           anchorStroke="#175cd3"
           anchorSize={8}
           borderStrokeWidth={1}
-          keepRatio={false}
+          keepRatio={pageObjects.find((object) => object.id === selectedObjectId)?.type === 'image'}
           flipEnabled={false}
           boundBoxFunc={(oldBox, nextBox) =>
             nextBox.width < 8 || nextBox.height < 8 ? oldBox : nextBox

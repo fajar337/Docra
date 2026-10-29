@@ -91,6 +91,17 @@ export type EditorObject =
   | RedactionObject
   | HighlightObject
   | DrawingObject
+  | ImageObject
+
+export interface ImageObject extends EditorObjectBase {
+  type: 'image'
+  x: number
+  y: number
+  width: number
+  height: number
+  dataUrl: string
+  name: string
+}
 
 export interface EditorSelection {
   objectId: string | null
