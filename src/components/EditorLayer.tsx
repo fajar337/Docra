@@ -11,7 +11,6 @@ import {
   Transformer,
 } from 'react-konva'
 import {
-  clamp,
   normalizeDraggedRect,
   screenToPagePoint,
 } from '../pdf/coordinates'
@@ -290,11 +289,6 @@ export function EditorLayer({ pageInfo, zoom }: EditorLayerProps) {
     setSelectedPage(pageInfo.pageIndex)
   }
 
-  const dragBound = (position: { x: number; y: number }) => ({
-    x: clamp(position.x, 0, pageInfo.width),
-    y: clamp(position.y, 0, pageInfo.height),
-  })
-
   const handleDragEnd = (
     object: EditorObject,
     event: KonvaEventObject<DragEvent>,
@@ -343,7 +337,6 @@ export function EditorLayer({ pageInfo, zoom }: EditorLayerProps) {
 
   const commonObjectProps = (object: EditorObject) => ({
     draggable: activeTool === 'select',
-    dragBoundFunc: dragBound,
     onClick: (event: KonvaEventObject<MouseEvent>) =>
       handleObjectClick(event, object.id),
     onTap: (event: KonvaEventObject<TouchEvent>) =>
