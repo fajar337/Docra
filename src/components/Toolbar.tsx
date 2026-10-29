@@ -73,6 +73,8 @@ export function Toolbar({
 }: ToolbarProps) {
   const activeTool = useEditorStore((state) => state.activeTool)
   const setActiveTool = useEditorStore((state) => state.setActiveTool)
+  const drawWidth = useEditorStore((state) => state.drawWidth)
+  const setDrawWidth = useEditorStore((state) => state.setDrawWidth)
   const zoom = useEditorStore((state) => state.zoom)
   const setZoom = useEditorStore((state) => state.setZoom)
   const [zoomDraft, setZoomDraft] = useState<string | null>(null)
@@ -471,6 +473,26 @@ export function Toolbar({
           ))}
         </div>
       </nav>
+      {activeTool === 'draw' ? (
+        <section className="draw-size" aria-label="Ukuran garis Draw">
+          <span className="draw-size__label">Size</span>
+          <div className="draw-size__options" role="group" aria-label="Ukuran garis">
+            {[1, 2, 3, 4, 5].map((size) => (
+              <button
+                key={size}
+                type="button"
+                className="draw-size__option"
+                aria-label={`Ukuran ${size}`}
+                aria-pressed={drawWidth === size}
+                disabled={!hasDocument}
+                onClick={() => setDrawWidth(size)}
+              >
+                <span style={{ width: `${size * 4}px` }} aria-hidden="true" />
+              </button>
+            ))}
+          </div>
+        </section>
+      ) : null}
     </GlassSurface>
   )
 }

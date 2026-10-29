@@ -199,7 +199,7 @@ describe('MuPDF exporter', () => {
         y: 90,
         points: [0, 0, 20, 10, 40, 0],
         width: 2,
-        color: '#175cd3',
+        color: '#FFFFFF',
         rotation: 0,
         scaleX: 1,
         scaleY: 1,

@@ -447,6 +447,49 @@
     inset 0 var(--rule-thin) 0 var(--glass-highlight);
 }
 
+.draw-size {
+  align-items: center;
+  display: flex;
+  gap: var(--space-sm);
+  padding: var(--space-2xs) var(--space-xs);
+}
+
+.draw-size__label {
+  color: var(--color-ink);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.draw-size__options {
+  display: flex;
+  gap: var(--space-2xs);
+}
+
+.draw-size__option {
+  align-items: center;
+  border: var(--rule-thin) solid transparent;
+  border-radius: 50%;
+  color: var(--color-ink);
+  display: inline-flex;
+  height: 2.75rem;
+  justify-content: center;
+  padding: 0;
+  width: 2.75rem;
+}
+
+.draw-size__option[aria-pressed="true"] {
+  background: var(--color-accent-soft);
+  border-color: var(--glass-border-strong);
+  color: var(--color-accent-hover);
+}
+
+.draw-size__option span {
+  background: currentColor;
+  border-radius: var(--radius-pill);
+  height: 3px;
+  transform: rotate(-45deg);
+}
+
 .visually-hidden {
   block-size: 1px;
   clip: rect(0 0 0 0);
@@ -1020,7 +1063,8 @@
     gap: var(--space-2xs);
     grid-template-areas:
       "identity actions"
-      "identity tools";
+      "identity tools"
+      "identity draw-size";
     grid-template-columns: minmax(12rem, auto) minmax(0, 1fr);
     padding: var(--space-2xs) var(--space-xs);
   }
@@ -1061,6 +1105,11 @@
     grid-area: tools;
     justify-self: end;
     max-width: 100%;
+  }
+
+  .draw-size {
+    grid-area: draw-size;
+    justify-self: end;
   }
 
   .workbench {

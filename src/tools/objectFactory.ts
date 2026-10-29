@@ -121,6 +121,7 @@ export function createDrawingObject(
   pageIndex: number,
   origin: { x: number; y: number },
   points: number[],
+  width = 3,
 ): DrawingObject {
   return {
     id: createId('drawing'),
@@ -129,8 +130,8 @@ export function createDrawingObject(
     x: origin.x,
     y: origin.y,
     points,
-    width: 2,
-    color: '#175cd3',
+    width,
+    color: '#FFFFFF',
     rotation: 0,
     scaleX: 1,
     scaleY: 1,

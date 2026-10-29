@@ -551,7 +551,7 @@ function addHighlightAnnotation(
   annotation.setQuadPoints([
     pageQuadToMupdfQuad(rectObjectToPageQuad(object), pageBounds),
   ])
-  annotation.setColor([1, 0.82, 0.12])
+  annotation.setColor([1, 1, 1])
   annotation.setOpacity(0.38)
   annotation.update()
 }

@@ -74,6 +74,7 @@ export function EditorLayer({ pageInfo, zoom }: EditorLayerProps) {
   const [hoveredTextId, setHoveredTextId] = useState<string | null>(null)
 
   const activeTool = useEditorStore((state) => state.activeTool)
+  const drawWidth = useEditorStore((state) => state.drawWidth)
   const selectedObjectId = useEditorStore((state) => state.selectedObjectId)
   const selectedPdfText = useEditorStore((state) => state.selectedPdfText)
   const selectObject = useEditorStore((state) => state.selectObject)
@@ -233,6 +234,7 @@ export function EditorLayer({ pageInfo, zoom }: EditorLayerProps) {
           pageInfo.pageIndex,
           currentDraft.origin,
           currentDraft.points,
+          drawWidth,
         )
         addObject(object)
         selectObject(object.id)
@@ -410,8 +412,8 @@ export function EditorLayer({ pageInfo, zoom }: EditorLayerProps) {
       width={object.width}
       height={object.height}
       rotation={object.rotation}
-      fill="rgba(246,210,70,0.44)"
-      stroke={selectedObjectId === object.id ? '#175cd3' : '#c59100'}
+      fill="#FFFFFF"
+      stroke={selectedObjectId === object.id ? '#175cd3' : '#FFFFFF'}
       strokeWidth={1}
       strokeScaleEnabled={false}
       {...commonObjectProps(object)}
@@ -552,8 +554,8 @@ export function EditorLayer({ pageInfo, zoom }: EditorLayerProps) {
             y={draft.rect.y}
             width={draft.rect.width}
             height={draft.rect.height}
-            fill="rgba(246,210,70,0.44)"
-            stroke="#c59100"
+            fill="#FFFFFF"
+            stroke="#FFFFFF"
             strokeWidth={1}
             strokeScaleEnabled={false}
             listening={false}
@@ -564,8 +566,8 @@ export function EditorLayer({ pageInfo, zoom }: EditorLayerProps) {
             x={draft.origin.x}
             y={draft.origin.y}
             points={draft.points}
-            stroke="#175cd3"
-            strokeWidth={2}
+            stroke="#FFFFFF"
+            strokeWidth={drawWidth}
             lineCap="round"
             lineJoin="round"
             listening={false}

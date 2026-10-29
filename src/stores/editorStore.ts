@@ -17,11 +17,13 @@ interface EditorState {
   selectedPdfText: PDFTextItem | null
   selectedPageIndex: number | null
   zoom: number
+  drawWidth: number
   setActiveTool: (tool: EditorTool) => void
   selectObject: (objectId: string | null) => void
   selectPdfText: (item: PDFTextItem | null) => void
   setSelectedPage: (pageIndex: number | null) => void
   setZoom: (zoom: number) => void
+  setDrawWidth: (width: number) => void
   resetSelection: () => void
 }
 
@@ -31,6 +33,7 @@ export const useEditorStore = create<EditorState>((set) => ({
   selectedPdfText: null,
   selectedPageIndex: null,
   zoom: 1,
+  drawWidth: 3,
 
   setActiveTool: (activeTool) =>
     set({ activeTool, selectedPdfText: null, selectedObjectId: null }),
@@ -40,6 +43,7 @@ export const useEditorStore = create<EditorState>((set) => ({
     set({ selectedPdfText, selectedObjectId: null }),
   setSelectedPage: (selectedPageIndex) => set({ selectedPageIndex }),
   setZoom: (zoom) => set({ zoom: normalizeZoom(zoom) }),
+  setDrawWidth: (drawWidth) => set({ drawWidth }),
   resetSelection: () =>
     set({
       selectedObjectId: null,
