@@ -400,7 +400,17 @@ export function Toolbar({
           </button>
         </div>
 
-        <div className="zoom-control" role="group" aria-label="Document zoom">
+        <div
+          className="zoom-control"
+          role="group"
+          aria-label="Document zoom"
+          onWheel={(event) => {
+            if (!hasDocument || event.deltaY === 0) return
+            event.preventDefault()
+            setZoomDraft(null)
+            setZoom(zoom + (event.deltaY < 0 ? ZOOM_STEP : -ZOOM_STEP))
+          }}
+        >
           <button
             type="button"
             className="zoom-control__button"
