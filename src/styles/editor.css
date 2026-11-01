@@ -941,7 +941,8 @@
 
 .document-history-list {
   display: grid;
-  gap: var(--space-xs);
+  max-height: 5rem;
+  overflow-y: auto;
   list-style: none;
   margin: 0;
   padding: 0;
@@ -949,16 +950,21 @@
 
 .document-history-list button {
   align-items: flex-start;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   gap: var(--space-3xs);
+  height: 4.75rem;
   min-width: 0;
   text-align: start;
   width: 100%;
 }
 
 .document-history-list strong {
-  overflow-wrap: anywhere;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .document-history-list span {
