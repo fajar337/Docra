@@ -10,6 +10,8 @@ import { Toolbar } from './Toolbar'
 import { GlassSurface } from './ui/GlassSurface'
 import { imageFromFile } from '../tools/images'
 import { pasteImage } from '../tools/imageClipboard'
+import { DocumentHistoryPanel } from './DocumentHistoryPanel'
+import { saveDocumentHistory, type SavedDocument } from '../pdf/documentHistory'
 import '../styles/editor.css'
 
 function isEditingTarget(target: EventTarget | null): boolean {
@@ -29,6 +31,7 @@ export function PDFEditor() {
   const pdfDocument = useDocumentStore((state) => state.pdfDocument)
   const originalBytes = useDocumentStore((state) => state.originalPdfBytes)
   const pages = useDocumentStore((state) => state.pages)
+  const historyId = useDocumentStore((state) => state.historyId)
   const fileName = useDocumentStore((state) => state.fileName)
   const isLoading = useDocumentStore((state) => state.isLoading)
   const isExporting = useDocumentStore((state) => state.isExporting)
@@ -44,11 +47,32 @@ export function PDFEditor() {
   const undo = useHistoryStore((state) => state.undo)
   const redo = useHistoryStore((state) => state.redo)
   const resetHistory = useHistoryStore((state) => state.reset)
+  const restoreObjects = useHistoryStore((state) => state.restoreObjects)
   const deleteObject = useHistoryStore((state) => state.deleteObject)
 
   const selectedObjectId = useEditorStore((state) => state.selectedObjectId)
   const selectObject = useEditorStore((state) => state.selectObject)
   const resetSelection = useEditorStore((state) => state.resetSelection)
+
+  useEffect(() => {
+    if (!historyId || !fileName || !originalBytes) return
+    const id = historyId
+    const bytes = Uint8Array.from(originalBytes)
+    let active = true
+    void saveDocumentHistory({
+      id,
+      fileName,
+      originalBytes: bytes,
+      objects: structuredClone(objects),
+      savedAt: Date.now(),
+    }).catch((saveError: unknown) => {
+      if (active && useDocumentStore.getState().historyId === id) {
+        console.error('Gagal menyimpan riwayat dokumen.', saveError)
+        setError('Riwayat dokumen gagal disimpan. Periksa ruang penyimpanan browser.')
+      }
+    })
+    return () => { active = false }
+  }, [fileName, historyId, objects, originalBytes, setError])
 
   useEffect(() => {
     const handleKeyboard = (event: KeyboardEvent) => {
@@ -105,6 +129,17 @@ export function PDFEditor() {
       const bytes = new Uint8Array(await file.arrayBuffer())
       await openBytes(bytes, file.name)
       resetHistory()
+      resetSelection()
+    } catch {
+      // documentStore already exposes a visible and logged error.
+    }
+  }
+
+  const handleRestoreHistory = async (entry: SavedDocument) => {
+    try {
+      await openBytes(entry.originalBytes, entry.fileName, entry.id)
+      resetHistory()
+      restoreObjects(entry.objects)
       resetSelection()
     } catch {
       // documentStore already exposes a visible and logged error.
@@ -198,6 +233,7 @@ export function PDFEditor() {
           aria-label="Inspector and debug information"
         >
           <InspectorPanel />
+          <DocumentHistoryPanel onOpen={handleRestoreHistory} />
           <DebugPanel />
         </GlassSurface>
       </div>

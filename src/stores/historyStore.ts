@@ -19,6 +19,7 @@ interface HistoryState {
   undo: () => void
   redo: () => void
   reset: () => void
+  restoreObjects: (objects: EditorObject[]) => void
 }
 
 function commit(
@@ -113,4 +114,7 @@ export const useHistoryStore = create<HistoryState>((set) => ({
       canUndo: false,
       canRedo: false,
     }),
+  restoreObjects: (present) => set({
+    past: [], present: cloneObjects(present), future: [], canUndo: false, canRedo: false,
+  }),
 }))

@@ -9,12 +9,13 @@ interface DocumentState {
   originalPdfBytes: Uint8Array | null
   lastExportBytes: Uint8Array | null
   fileName: string | null
+  historyId: string | null
   pageCount: number
   pages: PDFPageInfo[]
   isLoading: boolean
   isExporting: boolean
   error: string | null
-  openBytes: (bytes: Uint8Array, fileName: string) => Promise<void>
+  openBytes: (bytes: Uint8Array, fileName: string, historyId?: string) => Promise<void>
   setExportState: (isExporting: boolean) => void
   setLastExport: (bytes: Uint8Array) => void
   setError: (error: string | null) => void
@@ -25,13 +26,14 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
   originalPdfBytes: null,
   lastExportBytes: null,
   fileName: null,
+  historyId: null,
   pageCount: 0,
   pages: [],
   isLoading: false,
   isExporting: false,
   error: null,
 
-  openBytes: async (bytes, fileName) => {
+  openBytes: async (bytes, fileName, historyId = crypto.randomUUID()) => {
     set({ isLoading: true, error: null })
     await new Promise<void>((resolve) => window.setTimeout(resolve, 0))
 
@@ -44,6 +46,7 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
         originalPdfBytes: loaded.bytes,
         lastExportBytes: null,
         fileName,
+        historyId,
         pageCount: loaded.pageCount,
         pages: loaded.pages,
         isLoading: false,
